@@ -1,2 +1,2 @@
-frontend
 pymupdf
+streamlit

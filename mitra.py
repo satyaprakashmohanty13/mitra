@@ -61,18 +61,7 @@ def separatePayloads(fn, exts, data, swaps, overlap):
 
 
 def writeFile(name, exts, data, swaps=[], overlap=b""):
-	OutDir, NoFile, Split = getVars(["OUTDIR", "NOFILE", "SPLIT"])
-
-	random.seed(0)
-	hash = hashlib.sha256(data).hexdigest()[:8].lower()
-
-	if Split and swaps != []:
-		separatePayloads(name, exts, data, swaps, overlap)
-	fn = "%s.%s.%s" % (name, hash, ".".join(exts))
-	if not NoFile:
-		with open(os.path.join(OutDir, "%s" % fn), "wb") as f:
-				f.write(data)
-	return
+	return data
 
 
 def isStackOk(ftype1, ftype2):
@@ -189,7 +178,7 @@ def Stack(ftype1, ftype2, fn1, fn2):
 			ftype1.wrappend(b""))
 
 		Hit(ftype1.TYPE, ftype2.TYPE)
-		writeFile(
+		return writeFile(
 			"S(%x)-%s-%s" % (swap_o, ftype1.TYPE, ftype2.TYPE),
 			[ext(fn2), ext(fn1)],
 			ftype1.data + 
@@ -227,7 +216,7 @@ def Parasite(ftype1, ftype2, fn1, fn2):
 
 		swapstr = "(%s)" % "-".join("%x" % s for s in swaps) if swaps != [] else ""
 		Hit(ftype1.TYPE, ftype2.TYPE)
-		writeFile(
+		return writeFile(
 			"P%s-%s[%s]" % (swapstr, ftype1.TYPE, ftype2.TYPE),
 			[ext(fn1), ext(fn2)],
 			parasitized,
@@ -247,7 +236,7 @@ def Zipper(ftype1, ftype2, fn1, fn2):
 			ftype1.TYPE, ftype2.TYPE)))
 		swapstr = "(%s)" % "-".join("%x" % s for s in swaps) if swaps != [] else ""
 		Hit(ftype1.TYPE, ftype2.TYPE)
-		writeFile(
+		return writeFile(
 			"Z%s-%s^%s" % (swapstr, ftype1.TYPE, ftype2.TYPE),
 			[ext(fn1), ext(fn2)],
 			zipper,
@@ -265,7 +254,7 @@ def Cavity(ftype1, ftype2, fn1, fn2):
 		filled = filling + ftype1.wrappend(ftype2.data[filling_l:])
 		swap = filling_l
 		Hit(ftype1.TYPE, ftype2.TYPE)
-		writeFile(
+		return writeFile(
 			"C(%x)-%s-%s" % (swap, ftype1.TYPE, ftype2.TYPE),
 			[ext(fn2), ext(fn1)],
 			filled,
@@ -390,15 +379,13 @@ def Overlap(ftype1, ftype2, fn1, fn2, THRESHOLD=6):
 	overlap_s = "".join("%02X" % c for c in overlap)
 	swapstr = "(%s)" % "-".join("%x" % s for s in swaps) if swaps != [] else ""
 	Hit(ftype1.TYPE, ftype2.TYPE)
-	writeFile(
+	return writeFile(
 		"O%s-%s[%s]{%s}" % (swapstr, ftype1.TYPE, ftype2.TYPE, overlap_s),
 		[ext(fn1), ext(fn2)],
 		parasitized,
 		swaps=swaps,
 		overlap=overlap,	
 	)
-	print("Generic overlapping polyglot file created.")
-	return True
 
 
 def OverlapPE(ftype1, ftype2, fn1, fn2):
@@ -438,20 +425,17 @@ def OverlapPE(ftype1, ftype2, fn1, fn2):
 	overlap_s = "".join("%02X" % c for c in overlap)
 	swapstr = "(%s)" % "-".join("%x" % s for s in swaps) if swaps != [] else ""
 	Hit(ftype1.TYPE, ftype2.TYPE)
-	writeFile(
+	return writeFile(
 		"OR%s-%s[%s]{%s}" % (swapstr, ftype1.TYPE, ftype2.TYPE, overlap_s),
 		[ext(fn1), ext(fn2)],
 		parasitized,
 		swaps=swaps,
 		overlap=overlap,
 	)
-	print("Specific PE overlapping polyglot file created.")
-	return True
 
 
 def OverlapAll(ftype1, ftype2, fn1, fn2):
-	OverlapPE(ftype1, ftype2, fn1, fn2)
-	Overlap(ftype1, ftype2, fn1, fn2)
+	return Overlap(ftype1, ftype2, fn1, fn2)
 
 
 ext = lambda s:os.path.splitext(s)[1]
@@ -464,6 +448,43 @@ def DoAll(ftype1, ftype2, fn1, fn2):
 	Cavity(ftype1, ftype2, fn1, fn2)
 	if getVar("OVERLAP"):
 		OverlapAll(ftype1, ftype2, fn1, fn2)
+
+
+def process_files(fdata1, fdata2, transformation_type):
+	ftype1 = None
+	ftype2 = None
+
+	for parser in PARSERS:
+		ftype = parser.parser
+		f = ftype(fdata1)
+		if f.identify():
+			ftype1 = f
+		f = ftype(fdata2)
+		if f.identify():
+			ftype2 = f
+
+	if ftype1 is None:
+		raise ValueError("ERROR: Unknown type file 1.")
+
+	if ftype2 is None:
+		ftype2 = blob.reader(fdata2)
+
+	if ftype1.TYPE == ftype2.TYPE:
+		raise ValueError("ERROR: Same file types.")
+
+	fn1 = "file1"
+	fn2 = "file2"
+
+	if transformation_type == 'Stack':
+		return Stack(ftype1, ftype2, fn1, fn2)
+	elif transformation_type == 'Parasite':
+		return Parasite(ftype1, ftype2, fn1, fn2)
+	elif transformation_type == 'Zipper':
+		return Zipper(ftype1, ftype2, fn1, fn2)
+	elif transformation_type == 'Cavity':
+		return Cavity(ftype1, ftype2, fn1, fn2)
+	elif transformation_type == 'Overlap':
+		return OverlapAll(ftype1, ftype2, fn1, fn2)
 
 
 def main():
