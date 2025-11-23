@@ -1,3 +1,4 @@
 frontend
 pymupdf
 gradio
+spaces>=0.43.0
