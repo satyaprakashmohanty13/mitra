@@ -1,7 +1,7 @@
 import argparse
+import contextvars
 
-
-ARGS = {
+DEFAULT_ARGS = {
 	"VERBOSE" : False,
 	"REVERSE" : False,
 	"SPLIT"   : False,
@@ -14,20 +14,27 @@ ARGS = {
 	"OVERLAP" : False,
 }
 
+_ARGS_VAR = contextvars.ContextVar('mitra_args', default=DEFAULT_ARGS)
+
+def get_current_args():
+	curr = _ARGS_VAR.get()
+	if curr is DEFAULT_ARGS:
+		curr = curr.copy()
+		_ARGS_VAR.set(curr)
+	return curr
 
 def getVars(l):
-	global ARGS
-	return [ARGS[i] for i in l]
+	args = _ARGS_VAR.get()
+	return [args[i] for i in l]
 
 
 def getVar(k):
-	global ARGS
-	return ARGS[k]
+	return _ARGS_VAR.get()[k]
 
 
 def setVar(k, v):
-	global ARGS
-	ARGS[k] = v
+	args = get_current_args()
+	args[k] = v
 
 
 def dprint(*args):

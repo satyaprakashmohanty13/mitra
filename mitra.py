@@ -465,10 +465,7 @@ def DoAll(ftype1, ftype2, fn1, fn2):
 	if getVar("OVERLAP"):
 		OverlapAll(ftype1, ftype2, fn1, fn2)
 
-
-def main():
-	args = Setup(__description__)
-	fn1,fn2 = args.file1, args.file2
+def process_files(fn1, fn2):
 	with open(fn1, "rb") as f:
 		fdata1 = f.read()
 	with open(fn2, "rb") as f:
@@ -494,7 +491,7 @@ def main():
 	print("%s" % fn1)
 	if ftype1 is None:
 			print("ERROR: Unknown type file 1 - aborting.")
-			sys.exit()
+			raise ValueError("Unknown type file 1")
 	print("File 1: %s" % ftype1.DESC)
 
 	print("%s" % fn2)
@@ -503,14 +500,14 @@ def main():
 			ftype2 = blob.reader(fdata2)
 		else:
 			print("ERROR: Unknown type file 2 (try -f ?) - aborting.")
-			sys.exit()
+			raise ValueError("Unknown type file 2 (try -f ?)")
 
 	print("File 2: %s" % ftype2.DESC)
 	print("")
 
 	if ftype1.TYPE == ftype2.TYPE:
 		print("ERROR: Same file types - aborting.")
-		sys.exit()
+		raise ValueError("Same file types")
 
 
 	DoAll(ftype1, ftype2, fn1, fn2)
@@ -518,6 +515,14 @@ def main():
 		dprint("REVERSE: Switching files order")
 		dprint("")
 		DoAll(ftype2, ftype1, fn2, fn1)
+
+def main():
+	args = Setup(__description__)
+	fn1,fn2 = args.file1, args.file2
+	try:
+		process_files(fn1, fn2)
+	except ValueError as e:
+		sys.exit(1)
 
 if __name__ == "__main__":
 	main()
